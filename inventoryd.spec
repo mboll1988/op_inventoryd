@@ -9,7 +9,7 @@ Release:        1%{?dist}
 Summary:        InventoryHIPA daemon
 
 License:        GPL
-URL:            https://github.com/boll_m/op_inventoryd
+URL:            https://github.com/mboll1988/op_inventoryd
 Source0:        %{name}-%{version}.tar.gz
 
 Requires(pre):  shadow-utils
@@ -29,7 +29,7 @@ This package contains a simple daemon for the InventoryHIPA applicaiton ("Bestan
 getent group %{groupname} >/dev/null || groupadd -r %{groupname}
 getent passwd %{username} >/dev/null || \
     useradd -r -g %{groupname} -d %{homedir} -s /sbin/nologin \
-    -c "User used for running example of daemon" %{username}
+    -c "User used for running op_inventoryd" %{username}
 exit 0
 
 
