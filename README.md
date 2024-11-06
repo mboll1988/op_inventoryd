@@ -5,16 +5,16 @@ This repository also contains examples of starting scripts.
 
 ## Requirements
 
-To build example of the daemon you have to have following tools
+To build you have to have following tools
 
 * CMake
 * GCC/CLang
 
 ## Build
 
-To build example of daemon you have to type following commands:
+To build you have to type following commands:
 
-    git clone https://github.com/boll_m/op_inventoryd.git
+    git clone https://github.com/mboll1988/op_inventoryd.git
     cd op_inventoryd
     mkdir build
     cd build
@@ -24,8 +24,8 @@ To build example of daemon you have to type following commands:
 
 ## Usage
 
-    systemctl start simple-daemon
-    systemctl status simple-daemon
-    systemctl reload simple-daemon
-    systemctl stop simple-daemon
+    systemctl start op_inventoryd.service
+    systemctl status op_inventoryd.service
+    systemctl reload op_inventoryd.service
+    systemctl stop op_inventoryd.service
 
