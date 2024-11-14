@@ -10,7 +10,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 		"MinSizeRel" "RelWithDebInfo")
 endif ()
 
-project (InventoryHIPA daemon)
+project (op_inventoryd C)
 
 set (CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/build_files/cmake/modules/")
@@ -50,7 +50,7 @@ function(install_conf src dest)
 endfunction(install_conf)
 
 
-install_conf (./op_inventoryd.conf ${INVENTORYD_CONF_DIR})
-install_conf (./op_inventoryd.service ${SYSTEMD_UNIT_DIR})
+install_conf (op_inventoryd.conf ${INVENTORYD_CONF_DIR})
+install_conf (op_inventoryd.service ${SYSTEMD_UNIT_DIR})
 install(DIRECTORY DESTINATION ${INVENTORYD_LOG_DIR})
 install(DIRECTORY DESTINATION ${INVENTORY_PID_DIR})

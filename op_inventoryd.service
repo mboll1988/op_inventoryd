@@ -4,8 +4,8 @@ Description=HIPA Inventory daemon
 [Service]
 Type=inventory
 PIDFile=/run/op_inventoryd/op_inventoryd.pid
-ExecStart=/usr/bin/op_inventoryd \
-	--conf_file /etc/op_inventoryd/op_inventoryd.conf \
+ExecStart=/usr/local/bin/op_inventoryd \
+	--conf_file /etc/op_inventoryd.conf \
 	--log_file /var/log/op_inventoryd/op_inventoryd.log \
 	--pid_file /run/op_inventoryd/op_inventoryd.pid \
 	--daemon

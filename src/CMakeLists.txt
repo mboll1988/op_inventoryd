@@ -1,4 +1,4 @@
-set (inventoryd_src inventoryd.c)
+set (inventoryd_src op_inventoryd.c)
 
 # Make build flags compiler specific
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -14,4 +14,4 @@ add_executable (op_inventoryd ${inventoryd_src})
 # The rule to install daemon binary
 install (TARGETS op_inventoryd
 	RUNTIME
-	DESTINATION bin)
+	DESTINATION /opt/op_inventoryd/bin)
