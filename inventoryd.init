@@ -8,15 +8,15 @@
 # description: Example of UNIX daemon
 
 ### BEGIN INIT INFO
-# Provides:       daemon
+# Provides:       op_inventoryd
 # Required-Start: $rsyslog
 # Required-Stop:
 # Should-Start:
 # Should-Stop:
 # Default-Start: 2 3 4 5
 # Default-Stop:  0 1 6
-# Short-Description: start and stop example of daemon
-# Description: Example of UNIX daemon
+# Short-Description: start and stop InventoryHIPA daemon
+# Description: InventoryHIPA daemon
 ### END INIT INFO
 
 # Source function library.

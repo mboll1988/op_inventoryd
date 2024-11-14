@@ -5,14 +5,14 @@ This repository also contains examples of starting scripts.
 
 ## Requirements
 
-To build you have to have following tools
+To build you need following tools
 
 * CMake
 * GCC/CLang
 
 ## Build
 
-To build you have to type following commands:
+Type following commands:
 
     git clone https://github.com/mboll1988/op_inventoryd.git
     cd op_inventoryd

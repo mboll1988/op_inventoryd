@@ -1,9 +1,3 @@
-#if __STDC_VERSION__ >= 199901L
-#define _XOPEN_SOURCE 600
-#else
-#define _XOPEN_SOURCE 500
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,7 +14,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-
+#define BD_NO_CLOSE_FILES 02
+#define BD_NO_CHDIR 01
+#define BD_NO_UMASK0 010
+#define BD_NO_REOPEN_STD_FDS 94
+#define BD_MAX_CLOSE 8192
 #define BUFSIZE 1024
 #define PORT 8080
 #if 0
@@ -56,6 +54,9 @@ static int pid_fd = -1;
 static char *app_name = NULL;
 static FILE *log_stream;
 
+const char _FLAG_INVENTORYD_RUN[]= "INVENTORYHIPA_RUN";
+const char _FLAG_INVENTORYD_ABORT[]= "INVENTORYHIPA_ABORT";
+const char _FLAG_INVENTORYD_DONE[]= "INVENTORYHIPA_DONE";
 
 void error(char *msg) {
   perror(msg);
@@ -87,67 +88,6 @@ void handle_signal(int sig)
 }
 
 
-/**
- * \brief This function will daemonize this app
- */
-static void daemonize()
-{
-	pid_t pid = 0;
-	int fd;
-	pid = fork();
-	if (pid < 0)
-	{
-	  exit(EXIT_FAILURE);
-	}
-	if (pid > 0)
-	{
-	  exit(EXIT_SUCCESS);
-	}
-	if (setsid() < 0)
-	{
-	  exit(EXIT_FAILURE);
-	}
-	signal(SIGCHLD, SIG_IGN);
-	pid = fork();
-	if (pid < 0)
-	{
-	  exit(EXIT_FAILURE);
-	}
-	if (pid > 0)
-	{
-	  exit(EXIT_SUCCESS);
-	}
-	umask(0);
-	chdir("/");
-	for (fd = sysconf(_SC_OPEN_MAX); fd > 0; fd--)
-	{
-		close(fd);
-	}
-	stdin = fopen("/dev/null", "r");
-	stdout = fopen("/dev/null", "w+");
-	stderr = fopen("/dev/null", "w+");
-
-	if (pid_file_name != NULL)
-	{
-		char str[256];
-		pid_fd = open(pid_file_name, O_RDWR|O_CREAT, 0640);
-		if (pid_fd < 0)
-		{
-			/* Can't open lockfile */
-			exit(EXIT_FAILURE);
-		}
-		if (lockf(pid_fd, F_TLOCK, 0) < 0)
-		{
-			/* Can't lock file */
-			exit(EXIT_FAILURE);
-		}
-
-		sprintf(str, "%d\n", getpid());
-		write(pid_fd, str, strlen(str));
-	}
-}
-
-
 void print_help(void)
 {
 	printf("\n Usage: %s [OPTIONS]\n\n", app_name);
@@ -157,6 +97,57 @@ void print_help(void)
 	printf("   -d --daemon               Daemonize this application\n");
 	printf("   -p --pid_file  filename   PID file used by daemonized app\n");
 	printf("\n");
+}
+
+
+int become_daemon(int flags)
+{
+  int maxfd, fd;
+  switch(fork())                    // become background process
+  {
+    case -1: return -1;
+    case 0: break;                  // child falls through
+    default: _exit(EXIT_SUCCESS);   // parent terminates
+  }
+
+  if(setsid() == -1)                // become leader of new session
+    return -1;
+
+  switch(fork())
+  {
+    case -1: return -1;
+    case 0: break;                  // child breaks out of case
+    default: _exit(EXIT_SUCCESS);   // parent process will exit
+  }
+
+  if(!(flags & BD_NO_UMASK0))
+    umask(0);                       // clear file creation mode mask
+
+  if(!(flags & BD_NO_CHDIR))
+    chdir("/");                     // change to root directory
+
+  if(!(flags & BD_NO_CLOSE_FILES))  // close all open files
+  {
+    maxfd = sysconf(_SC_OPEN_MAX);
+    if(maxfd == -1)
+      maxfd = BD_MAX_CLOSE;         // if we don't know then guess
+    for(fd = 0; fd < maxfd; fd++)
+      close(fd);
+  }
+
+  if(!(flags & BD_NO_REOPEN_STD_FDS))
+  {
+    close(STDIN_FILENO);
+    fd = open("/dev/null", O_RDWR);
+    if(fd != STDIN_FILENO)
+      return -1;
+    if(dup2(STDIN_FILENO, STDOUT_FILENO) != STDOUT_FILENO)
+      return -2;
+    if(dup2(STDIN_FILENO, STDERR_FILENO) != STDERR_FILENO)
+      return -3;
+  }
+
+  return 0;
 }
 
 
@@ -181,10 +172,10 @@ int main(int argc, char *argv[])
 	char buf[BUFSIZE];
 	char *hostaddrp;
 	int optval;
-	int n;
+	int n, ret_d;
 	
 	app_name = argv[0];
-	while ((value = getopt_long(argc, argv, "c:l:t:p:dh", long_options, &option_index)) != -1)
+	while ((value = getopt_long(argc, argv, "c:l:t:p:d:h", long_options, &option_index)) != -1)
 	{
 	  switch (value)
 	  {
@@ -197,9 +188,9 @@ int main(int argc, char *argv[])
 	        case 'h':
 		  print_help();
 		  return EXIT_SUCCESS;
-		  //case 'd':
-		  //start_daemonized = 1;
-		  //break;
+		case 'd':
+		  start_daemonized = 1;
+		  break;
 	        case '?':
 		  print_help();
 		  return EXIT_FAILURE;
@@ -207,9 +198,16 @@ int main(int argc, char *argv[])
 		  break;
 		}
 	}
-	//if(start_daemonized==1)
-	daemonize();
-
+	if(start_daemonized==1)
+	  {
+	    ret_d = become_daemon(0);
+	    if(ret_d)
+	      {
+		syslog(LOG_USER | LOG_ERR, "error starting");
+		closelog();
+		return EXIT_FAILURE;
+	      }
+	  }
 	/* Write to LOG... */
 	openlog(argv[0], LOG_PID|LOG_CONS, LOG_DAEMON);
 	syslog(LOG_INFO, "Started %s", app_name);
@@ -269,40 +267,59 @@ int main(int argc, char *argv[])
 				(log_stream == stdout) ? "stdout" : log_file_name, strerror(errno));
 			break;
 		}
-
 		childfd = accept(parentfd, (struct sockaddr *) &clientaddr, &clientlen);
-		if (childfd < 0) 
-		  error("ERROR on accept");
-
+		if (childfd < 0)
+		  {
+		    syslog(LOG_ERR, "ERROR on accept");
+		  }
 		hostp = gethostbyaddr((const char *)&clientaddr.sin_addr.s_addr, 
 				      sizeof(clientaddr.sin_addr.s_addr), AF_INET);
 		if (hostp == NULL)
-		  error("ERROR on gethostbyaddr");
+		  {
+		    syslog(LOG_ERR, "Error on gethostbyaddr");
+		  }
 		hostaddrp = inet_ntoa(clientaddr.sin_addr);
 		if (hostaddrp == NULL)
-		  error("ERROR on inet_ntoa\n");
-		printf("server established connection with %s (%s)\n", 
+		  {
+		    syslog(LOG_ERR, "ERROR on inet_ntoa");
+		  }
+		syslog(LOG_INFO, "Connection to %s (%s) established...\n",
 		       hostp->h_name, hostaddrp);
-    
-		bzero(buf, BUFSIZE);
-		n = read(childfd, buf, BUFSIZE);
-		if (n < 0) 
-		  error("ERROR reading from socket");
-		printf("server received %d bytes: %s", n, buf);
-    
-		/* 
-		 * write: echo the input string back to the client 
-		 */
-		n = write(childfd, buf, strlen(buf));
-		if (n < 0) 
-		  error("ERROR writing to socket");
 		
-		/* Real server should use select() or poll() for waiting at
-		 * asynchronous event. Note: sleep() is interrupted, when
-		 * signal is received. */
-		sleep(delay);
+		bzero(buf, BUFSIZE);
+
+		while ((n = read(childfd, buf, BUFSIZE)) > 0)
+		  {
+		    buf[n] = 0x00;
+		    for (int i = n - 1; i >= 0 && (buf[i] == '\n' || buf[i] == '\r' || buf[i] == ' '); i--)
+		      {
+			buf[i] = '\0';
+		      }
+		    syslog(LOG_INFO, "Block read: \n<%s>\n", buf);
+		    if(strcmp(buf, _FLAG_INVENTORYD_RUN) == 0)
+		      {
+			syslog(LOG_INFO, "Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
+		      }
+		    else if(strcmp(buf, _FLAG_INVENTORYD_ABORT) == 0)
+		      {
+			syslog(LOG_INFO, "Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
+		      }
+		    else if(strcmp(buf, _FLAG_INVENTORYD_DONE) == 0)
+		      {
+			syslog(LOG_INFO, "Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
+		      }
+		    n = write(childfd, buf, strlen(buf));
+		    if (n < 0) 
+		      error("ERROR writing to socket");
+		
+		    /* Real server should use select() or poll() for waiting at
+		     * asynchronous event. Note: sleep() is interrupted, when
+		     * signal is received. */
+		    sleep(delay);
+		}
+		close(childfd);
 	}
-	close(childfd);
+
 	
 	if (log_stream != stdout) {
 		fclose(log_stream);
