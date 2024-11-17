@@ -10,6 +10,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 		"MinSizeRel" "RelWithDebInfo")
 endif ()
 
+set (CMAKE_INSTALL_PREFIX "/usr")
 project (op_inventoryd C)
 
 set (CMAKE_MODULE_PATH
@@ -18,8 +19,8 @@ set (CMAKE_MODULE_PATH
 set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin/)
 add_subdirectory (src)
 
-set (INVENTORYD_CONF_DIR "/etc/op_inventoryd")
-set (SYSTEMD_UNIT_DIR "/usr/lib/systemd/system/")
+set (INVENTORYD_CONF_DIR "/etc")
+set (SYSTEMD_UNIT_DIR "/usr/lib/systemd/system")
 set (INVENTORYD_LOG_DIR "/var/log/op_inventoryd")
 set (INVENTORYD_PID_DIR "/run/op_inventoryd")
 

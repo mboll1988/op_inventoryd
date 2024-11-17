@@ -13,6 +13,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <spawn.h>
+#include <memory.h>
 
 #define BD_NO_CLOSE_FILES 02
 #define BD_NO_CHDIR 01
@@ -22,6 +24,8 @@
 #define BUFSIZE 1024
 #define PORT 8080
 #if 0
+
+
 
 /* Internet address */
 struct in_addr {
@@ -45,7 +49,7 @@ struct hostent {
   char    **h_addr_list;
 }
 #endif
-
+static int app_started;
 static int running = 0;
 static int delay = 1;
 static int counter = 0;
@@ -57,6 +61,9 @@ static FILE *log_stream;
 const char _FLAG_INVENTORYD_RUN[]= "INVENTORYHIPA_RUN";
 const char _FLAG_INVENTORYD_ABORT[]= "INVENTORYHIPA_ABORT";
 const char _FLAG_INVENTORYD_DONE[]= "INVENTORYHIPA_DONE";
+
+
+extern char **environ;
 
 void error(char *msg) {
   perror(msg);
@@ -150,6 +157,41 @@ int become_daemon(int flags)
   return 0;
 }
 
+pid_t run_inventory_app()
+{
+    /* /// --->  
+     */   
+    pid_t pid;
+    //char *env_disp = "DISPLAY";
+    char *argv[] = {"/usr/bin/firefox", (char*)0};
+    
+    char* disp_env = "DISPLAY=";
+    char* disp_value = (char*) getenv("DISPLAY");
+    char* env;
+    env = malloc(strlen(disp_env)+1+strlen(disp_value));
+    strcpy(env, disp_env);
+    strcat(env, disp_value);
+    free(env);    
+    return pid;
+    /*
+    //char *env = "DISPLAY=" (char*) getenv("DISPLAY");
+    //char *env = (char*)"DISPLAY=:1";
+    syslog(LOG_INFO, "%s\n", env);
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+    //posix_spawnattr_setflags(&attr, POSIX_SPAWN_USEVFORK);
+
+    int status = posix_spawn(&pid, "/usr/bin/firefox", NULL, &attr, argv, &env);
+    if(status != 0)
+      {
+	syslog(LOG_ERR, "Error starting external application 'InventoryHIPA'");
+	return -1;
+    }
+
+    return pid;
+    */
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -173,7 +215,7 @@ int main(int argc, char *argv[])
 	char *hostaddrp;
 	int optval;
 	int n, ret_d;
-	
+	pid_t pid_daemon;
 	app_name = argv[0];
 	while ((value = getopt_long(argc, argv, "c:l:t:p:d:h", long_options, &option_index)) != -1)
 	{
@@ -198,6 +240,7 @@ int main(int argc, char *argv[])
 		  break;
 		}
 	}
+	/*
 	if(start_daemonized==1)
 	  {
 	    ret_d = become_daemon(0);
@@ -208,10 +251,11 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	      }
 	  }
+	*/
 	/* Write to LOG... */
 	openlog(argv[0], LOG_PID|LOG_CONS, LOG_DAEMON);
 	syslog(LOG_INFO, "Started %s", app_name);
-
+	printf("Started %s\n", app_name);
 	signal(SIGINT, handle_signal);
 	signal(SIGHUP, handle_signal);
 
@@ -220,6 +264,7 @@ int main(int argc, char *argv[])
 		if (log_stream == NULL) {
 			syslog(LOG_ERR, "Can not open log file: %s, error: %s",
 				log_file_name, strerror(errno));
+			printf("Can not open log file: %s, error: %s", log_file_name, strerror(errno));
 			log_stream = stdout;
 		}
 	} else {
@@ -252,6 +297,7 @@ int main(int argc, char *argv[])
 	  error("ERROR on listen");
 
 	running = 1;
+	app_started = 0;
 	clientlen = sizeof(clientaddr);
 	while (running == 1) {
 		/* Debug print */
@@ -296,18 +342,32 @@ int main(int argc, char *argv[])
 			buf[i] = '\0';
 		      }
 		    syslog(LOG_INFO, "Block read: \n<%s>\n", buf);
+		    printf("Block read: \n<%s>\n", buf);
 		    if(strcmp(buf, _FLAG_INVENTORYD_RUN) == 0)
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
+			printf("Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
+			pid_daemon = run_inventory_app();
+			if(pid_daemon < 0 ) // ( kill(pid_daemon,0) == 0))
+			  syslog(LOG_ERR, "ERROR starting process InvonteryHIPA");			  
 		      }
 		    else if(strcmp(buf, _FLAG_INVENTORYD_ABORT) == 0)
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
+			printf("Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
+			if( kill(pid_daemon,0) == 0)
+			  kill(pid_daemon, SIGKILL); 
 		      }
 		    else if(strcmp(buf, _FLAG_INVENTORYD_DONE) == 0)
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
+			printf("Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
+			if( kill(pid_daemon,0) == 0)
+			  kill(pid_daemon, SIGTERM);
+			//syslog(LOG_INFO, "Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
 		      }
+		    else
+		      continue;
 		    n = write(childfd, buf, strlen(buf));
 		    if (n < 0) 
 		      error("ERROR writing to socket");

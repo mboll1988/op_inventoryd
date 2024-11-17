@@ -14,4 +14,4 @@ add_executable (op_inventoryd ${inventoryd_src})
 # The rule to install daemon binary
 install (TARGETS op_inventoryd
 	RUNTIME
-	DESTINATION /opt/op_inventoryd/bin)
+	DESTINATION bin)
