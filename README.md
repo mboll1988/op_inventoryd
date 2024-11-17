@@ -5,7 +5,7 @@ This repository also contains examples of starting scripts.
 
 ## Requirements
 
-To build you need following tools
+To build the daemon you need the following tools
 
 * CMake
 * GCC/CLang
