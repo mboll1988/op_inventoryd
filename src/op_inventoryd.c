@@ -15,7 +15,11 @@
 #include <arpa/inet.h>
 #include <spawn.h>
 #include <memory.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
+#define _GNU_SOURCE
+#define _POSIX_SOURCE
 #define BD_NO_CLOSE_FILES 02
 #define BD_NO_CHDIR 01
 #define BD_NO_UMASK0 010
@@ -157,44 +161,28 @@ int become_daemon(int flags)
   return 0;
 }
 
+
 pid_t run_inventory_app()
 {
-    /* /// --->  
-     */   
-    pid_t pid;
-    //char *env_disp = "DISPLAY";
-    char *argv[] = {"/usr/bin/firefox", (char*)0};
-    
-    char* disp_env = "DISPLAY=";
-    char* disp_value = (char*) getenv("DISPLAY");
-    char* env;
-    env = malloc(strlen(disp_env)+1+strlen(disp_value));
-    strcpy(env, disp_env);
-    strcat(env, disp_value);
-    free(env);    
-    return pid;
-    /*
-    //char *env = "DISPLAY=" (char*) getenv("DISPLAY");
-    //char *env = (char*)"DISPLAY=:1";
-    syslog(LOG_INFO, "%s\n", env);
+
+    pid_t pid_proc;
+    int status;
+    char *argv[] = {"/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", "remote", (char*)0};
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
-    //posix_spawnattr_setflags(&attr, POSIX_SPAWN_USEVFORK);
-
-    int status = posix_spawn(&pid, "/usr/bin/firefox", NULL, &attr, argv, &env);
+    status = posix_spawn(&pid_proc, "/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", NULL, &attr, argv, environ);
     if(status != 0)
       {
 	syslog(LOG_ERR, "Error starting external application 'InventoryHIPA'");
 	return -1;
-    }
-
-    return pid;
-    */
+      }
+    return pid_proc;
 }
 
 
 int main(int argc, char *argv[])
 {
+  
 	static struct option long_options[] = {
 	  {"log_file", required_argument, 0, 'l'},
 	  {"help", no_argument, 0, 'h'},
@@ -216,6 +204,7 @@ int main(int argc, char *argv[])
 	int optval;
 	int n, ret_d;
 	pid_t pid_daemon;
+	int started = 0;
 	app_name = argv[0];
 	while ((value = getopt_long(argc, argv, "c:l:t:p:d:h", long_options, &option_index)) != -1)
 	{
@@ -297,7 +286,7 @@ int main(int argc, char *argv[])
 	  error("ERROR on listen");
 
 	running = 1;
-	app_started = 0;
+	started = 0;
 	clientlen = sizeof(clientaddr);
 	while (running == 1) {
 		/* Debug print */
@@ -343,28 +332,42 @@ int main(int argc, char *argv[])
 		      }
 		    syslog(LOG_INFO, "Block read: \n<%s>\n", buf);
 		    printf("Block read: \n<%s>\n", buf);
-		    if(strcmp(buf, _FLAG_INVENTORYD_RUN) == 0)
+		    if((strcmp(buf, _FLAG_INVENTORYD_RUN) == 0) && (started == 0))
 		      {
+			//if(started) continue;
 			syslog(LOG_INFO, "Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
 			printf("Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
 			pid_daemon = run_inventory_app();
-			if(pid_daemon < 0 ) // ( kill(pid_daemon,0) == 0))
-			  syslog(LOG_ERR, "ERROR starting process InvonteryHIPA");			  
+			started = 1;
+			if(pid_daemon < 0 )
+			  {
+			    started = 0;
+			    syslog(LOG_ERR, "ERROR starting process InvonteryHIPA");
+			  }
 		      }
-		    else if(strcmp(buf, _FLAG_INVENTORYD_ABORT) == 0)
+		    else if((strcmp(buf, _FLAG_INVENTORYD_ABORT) == 0) && (started==1))
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
 			printf("Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
 			if( kill(pid_daemon,0) == 0)
-			  kill(pid_daemon, SIGKILL); 
+			  {
+			    printf("SIGKILL on %d\n", pid_daemon);
+			    signal(SIGCHLD, SIG_IGN);
+			    kill(pid_daemon, SIGKILL);
+			    started = 0;
+			  }
 		      }
-		    else if(strcmp(buf, _FLAG_INVENTORYD_DONE) == 0)
+		    else if((strcmp(buf, _FLAG_INVENTORYD_DONE) == 0) && started==1)
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
 			printf("Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
 			if( kill(pid_daemon,0) == 0)
-			  kill(pid_daemon, SIGTERM);
-			//syslog(LOG_INFO, "Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
+			  {
+			    printf("SIGTERM on %d\n", pid_daemon);
+			    signal(SIGCHLD, SIG_IGN);
+			    kill(pid_daemon, SIGQUIT);
+			    started = 0;
+			  }
 		      }
 		    else
 		      continue;
@@ -377,6 +380,7 @@ int main(int argc, char *argv[])
 		     * signal is received. */
 		    sleep(delay);
 		}
+		started = 0;
 		close(childfd);
 	}
 
