@@ -1,17 +1,15 @@
 [Unit]
-Description=HIPA Inventory daemon
+Description=InventoryHIPA daemon
 
 [Service]
-Type=inventory
-PIDFile=/run/op_inventoryd/op_inventoryd.pid
-ExecStart=/usr/local/bin/op_inventoryd \
-	--conf_file /etc/op_inventoryd.conf \
+Environment=XDG_SESSION_TYPE=x11
+Environment=DISPLAY=:1
+ExecStart=/usr/bin/bash -lc /usr/bin/op_inventoryd \
 	--log_file /var/log/op_inventoryd/op_inventoryd.log \
-	--pid_file /run/op_inventoryd/op_inventoryd.pid \
-	--daemon
-User=inventoryd
+	--pid_file /run/op_inventoryd/op_inventoryd.pid
+User=boll_m
 ExecReload=/bin/kill -HUP $MAINPID
 
-
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
+

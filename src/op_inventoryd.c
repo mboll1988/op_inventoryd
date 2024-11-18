@@ -167,10 +167,13 @@ pid_t run_inventory_app()
 
     pid_t pid_proc;
     int status;
-    char *argv[] = {"/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", "remote", (char*)0};
+    //char *argv[] = {"/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", "remote", (char*)0};
+    char *argv[] = {"gnome-calculator", (char*)NULL};
+    //char *env[] = {"DISPLAY=:1", "XAUTHORITY=/home/boll_m/.Xauthority", (char*)NULL};
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
-    status = posix_spawn(&pid_proc, "/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", NULL, &attr, argv, environ);
+    status = posix_spawnp(&pid_proc, "gnome-calculator", NULL, &attr, argv, environ);
+    //status = posix_spawn(&pid_proc, "/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", NULL, &attr, argv, environ);
     if(status != 0)
       {
 	syslog(LOG_ERR, "Error starting external application 'InventoryHIPA'");
