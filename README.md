@@ -1,7 +1,6 @@
 # InventoryHIPA daemon
 
 This repository contains a simple daemon applicaiton for the InventoryHIPA applicaiton ("Bestandesaufnahme") 
-This repository also contains examples of starting scripts.
 
 ## Requirements
 
