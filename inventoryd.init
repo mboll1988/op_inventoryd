@@ -25,8 +25,8 @@
 prog="op_inventoryd"
 app="/usr/bin/$prog"
 lock_file="/var/lock/subsys/$prog"
-log_file="/var/log/$prog.log"
-conf_file="/etc/op_inventoryd/op_inventoryd.conf"
+log_file="/var/log/$prog/$prog.log"
+conf_file="/etc/op_inventoryd.conf"
 proguser=root
 
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog

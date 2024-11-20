@@ -105,7 +105,6 @@ void print_help(void)
 	printf("  Options:\n");
 	printf("   -h --help                 Print this help\n");
 	printf("   -l --log_file  filename   Write logs to the file\n");
-	printf("   -d --daemon               Daemonize this application\n");
 	printf("   -p --pid_file  filename   PID file used by daemonized app\n");
 	printf("\n");
 }
@@ -167,13 +166,10 @@ pid_t run_inventory_app()
 
     pid_t pid_proc;
     int status;
-    //char *argv[] = {"/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", "remote", (char*)0};
-    char *argv[] = {"gnome-calculator", (char*)NULL};
-    //char *env[] = {"DISPLAY=:1", "XAUTHORITY=/home/boll_m/.Xauthority", (char*)NULL};
+    char *argv[] = {"/hipa/op/applicaitons/Bestandesaufnahme/build/InventoryHIPA", "remote", (char*)0};
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
-    status = posix_spawnp(&pid_proc, "gnome-calculator", NULL, &attr, argv, environ);
-    //status = posix_spawn(&pid_proc, "/hipa/op/applicaitons/Bestandesaufnahme/bin/InventoryHIPA", NULL, &attr, argv, environ);
+    status = posix_spawn(&pid_proc, "/hipa/op/applicaitons/Bestandesaufnahme/build/InventoryHIPA", NULL, &attr, argv, environ);
     if(status != 0)
       {
 	syslog(LOG_ERR, "Error starting external application 'InventoryHIPA'");
@@ -189,7 +185,6 @@ int main(int argc, char *argv[])
 	static struct option long_options[] = {
 	  {"log_file", required_argument, 0, 'l'},
 	  {"help", no_argument, 0, 'h'},
-	  {"daemon", no_argument, 0, 'd'},
 	  {"pid_file", required_argument, 0, 'p'},
 	  {NULL, 0, 0, 0}
 	};
@@ -209,7 +204,7 @@ int main(int argc, char *argv[])
 	pid_t pid_daemon;
 	int started = 0;
 	app_name = argv[0];
-	while ((value = getopt_long(argc, argv, "c:l:t:p:d:h", long_options, &option_index)) != -1)
+	while ((value = getopt_long(argc, argv, "l:p:h", long_options, &option_index)) != -1)
 	{
 	  switch (value)
 	  {
@@ -222,8 +217,6 @@ int main(int argc, char *argv[])
 	        case 'h':
 		  print_help();
 		  return EXIT_SUCCESS;
-		case 'd':
-		  start_daemonized = 1;
 		  break;
 	        case '?':
 		  print_help();
@@ -247,7 +240,6 @@ int main(int argc, char *argv[])
 	/* Write to LOG... */
 	openlog(argv[0], LOG_PID|LOG_CONS, LOG_DAEMON);
 	syslog(LOG_INFO, "Started %s", app_name);
-	printf("Started %s\n", app_name);
 	signal(SIGINT, handle_signal);
 	signal(SIGHUP, handle_signal);
 
@@ -256,7 +248,6 @@ int main(int argc, char *argv[])
 		if (log_stream == NULL) {
 			syslog(LOG_ERR, "Can not open log file: %s, error: %s",
 				log_file_name, strerror(errno));
-			printf("Can not open log file: %s, error: %s", log_file_name, strerror(errno));
 			log_stream = stdout;
 		}
 	} else {
@@ -334,12 +325,9 @@ int main(int argc, char *argv[])
 			buf[i] = '\0';
 		      }
 		    syslog(LOG_INFO, "Block read: \n<%s>\n", buf);
-		    printf("Block read: \n<%s>\n", buf);
 		    if((strcmp(buf, _FLAG_INVENTORYD_RUN) == 0) && (started == 0))
 		      {
-			//if(started) continue;
 			syslog(LOG_INFO, "Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
-			printf("Flag received: \n<%s>\nStarting InvenotryHIPA applicaiton.\n", buf);
 			pid_daemon = run_inventory_app();
 			started = 1;
 			if(pid_daemon < 0 )
@@ -351,7 +339,6 @@ int main(int argc, char *argv[])
 		    else if((strcmp(buf, _FLAG_INVENTORYD_ABORT) == 0) && (started==1))
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
-			printf("Flag received: \n<%s>\nAborting InvenotryHIPA applicaiton.\n", buf);
 			if( kill(pid_daemon,0) == 0)
 			  {
 			    printf("SIGKILL on %d\n", pid_daemon);
@@ -363,7 +350,6 @@ int main(int argc, char *argv[])
 		    else if((strcmp(buf, _FLAG_INVENTORYD_DONE) == 0) && started==1)
 		      {
 			syslog(LOG_INFO, "Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
-			printf("Flag received: \n<%s>\nClosing InvenotryHIPA applicaiton.\n", buf);
 			if( kill(pid_daemon,0) == 0)
 			  {
 			    printf("SIGTERM on %d\n", pid_daemon);
@@ -377,10 +363,7 @@ int main(int argc, char *argv[])
 		    n = write(childfd, buf, strlen(buf));
 		    if (n < 0) 
 		      error("ERROR writing to socket");
-		
-		    /* Real server should use select() or poll() for waiting at
-		     * asynchronous event. Note: sleep() is interrupted, when
-		     * signal is received. */
+	        
 		    sleep(delay);
 		}
 		started = 0;
