@@ -1,4 +1,7 @@
 %global debug_package %{nil}
+%undefine _annotated_build
+
+
 
 Name:           op_inventoryd
 Version:        0.0.1
@@ -41,7 +44,7 @@ This package contains a simple daemon for the InventoryHIPA applicaiton ("Bestan
 %build
 
 
-%cmake -DCMAKE_BUILD_TYPE="Release"  ../
+%cmake -DCMAKE_BUILD_TYPE="Debug" ./
 %cmake_build
 
 
