@@ -1,8 +1,6 @@
 %global debug_package %{nil}
 %undefine _annotated_build
 
-
-
 Name:           op_inventoryd
 Version:        0.0.1
 Release:        1%{?dist}
@@ -11,9 +9,7 @@ Summary:        InventoryHIPA daemon
 License:        GPL
 URL:            https://github.com/mboll1988/op_inventoryd.git
 Source0:        %{name}-%{version}.tar.gz
-
-Requires(pre):  shadow-utils
-
+Requires:       firewalld
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  cmake
@@ -32,18 +28,6 @@ This package contains a simple daemon for the InventoryHIPA applicaiton ("Bestan
 #    -c "User used for running op_inventoryd" %{username}
 #exit 0
 
-if [ $1 == 1 ]
-then
-    # First time install
-    firewall-cmd --reload --quiet
-    firewall-cmd --new-zone=op_inventory-access --permanent
-    firewall-cmd --reload --quiet
-    firewall-cmd --get-zones
-    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.14/24 --permanent
-    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.15/24 --permanent
-    firewall-cmd --zone=op_inventory-access --add-port=8080/tcp --permanent
-
-fi
 
 # Section for preparation of build
 %prep
@@ -56,23 +40,39 @@ fi
 # Build section
 %build
 
-
 %cmake -DCMAKE_BUILD_TYPE="Debug" ./
 %cmake_build
 
 
 # Install section
 %install
+
 # Remove previous build results
-
-
 rm -rf $RPM_BUILD_ROOT
+
 # This macro runs make -f Makefile install and it installs
 # all files to $RPM_BUILD_ROOT
-
-
 %cmake_install
 
+
+# Post section 
+%post
+if [ $1 == 1 ]
+then
+    # First time install
+    firewall-cmd --reload --quiet
+    firewall-cmd --new-zone=op_inventory-access --permanent
+    firewall-cmd --reload --quiet
+    firewall-cmd --get-zones
+    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.14/24 --permanent
+    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.15/24 --permanent
+    firewall-cmd --zone=op_inventory-access --add-port=8080/tcp --permanent
+fi
+systemctl enable op_inventoryd.service
+systemctl start op_inventoryd.service
+
+
+# Pre-Un section
 %preun
 if [ $1 == 0 ]
 then
@@ -84,9 +84,12 @@ then
     firewall-cmd --reload --quiet
 fi
 
+
+# Post-Un section
 %postun
 rm -rf /var/log/op_inventoryd
 rm -rf /run/op_inventoryd
+
 
 # Files section
 %files
@@ -109,4 +112,5 @@ rm -rf /run/op_inventoryd
 %changelog
 * Tue Nov 19 2024 boll_m <marco.boll@psi.ch>
 -- created op_inventoryd RPM
-
+* Fr Dec 6 2024 boll_m <marco.boll@psi.ch>
+-- added firewall rules configuration
