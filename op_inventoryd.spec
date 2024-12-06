@@ -32,6 +32,19 @@ This package contains a simple daemon for the InventoryHIPA applicaiton ("Bestan
 #    -c "User used for running op_inventoryd" %{username}
 #exit 0
 
+if [ $1 == 1 ]
+then
+    # First time install
+    firewall-cmd --reload --quiet
+    firewall-cmd --new-zone=op_inventory-access --permanent
+    firewall-cmd --reload --quiet
+    firewall-cmd --get-zones
+    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.14/24 --permanent
+    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.15/24 --permanent
+    firewall-cmd --zone=op_inventory-access --add-port=8080/tcp --permanent
+
+fi
+
 # Section for preparation of build
 %prep
 
@@ -49,8 +62,6 @@ This package contains a simple daemon for the InventoryHIPA applicaiton ("Bestan
 
 
 # Install section
-
-
 %install
 # Remove previous build results
 
@@ -62,7 +73,16 @@ rm -rf $RPM_BUILD_ROOT
 
 %cmake_install
 
-
+%preun
+if [ $1 == 0 ]
+then
+    # Complete uninstall
+    firewall-cmd --zone=op_inventory-access --remove-source=172.19.10.14/24 --permanent
+    firewall-cmd --zone=op_inventory-access --remove-source=172.19.10.15/24 --permanent
+    firewall-cmd --zone=op_inventory-access --remove-port=8080/tcp --permanent
+    firewall-cmd --permanent --delete-zone=op_inventory-access
+    firewall-cmd --reload --quiet
+fi
 
 %postun
 rm -rf /var/log/op_inventoryd
