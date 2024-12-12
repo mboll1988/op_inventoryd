@@ -57,34 +57,31 @@ rm -rf $RPM_BUILD_ROOT
 
 # Post section 
 %post
-if [ $1 == 1 ]
-then
-    # First time install
-    firewall-cmd --reload --quiet
-    firewall-cmd --new-zone=op_inventory-access --permanent
-    firewall-cmd --reload --quiet
-    firewall-cmd --get-zones
-    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.14/24 --permanent
-    firewall-cmd --zone=op_inventory-access --add-source=172.19.10.15/24 --permanent
-    firewall-cmd --zone=op_inventory-access --add-port=8080/tcp --permanent
-fi
+if systemctl is-active --quiet firewalld; then
+	# First time install
+	firewall-cmd --reload --quiet
+	firewall-cmd --new-zone=op_inventory-access --permanent
+	firewall-cmd --reload --quiet
+	firewall-cmd --get-zones
+	firewall-cmd --zone=op_inventory-access --add-source=172.19.10.14/24 --permanent
+	firewall-cmd --zone=op_inventory-access --add-source=172.19.10.15/24 --permanent
+	firewall-cmd --zone=op_inventory-access --add-port=8080/tcp --permanent
+    fi
+
 systemctl enable op_inventoryd.service
 systemctl start op_inventoryd.service
 
 
 # Pre-Un section
 %preun
-if [ $1 == 0 ]
-then
-    # Complete uninstall
-    firewall-cmd --zone=op_inventory-access --remove-source=172.19.10.14/24 --permanent
-    firewall-cmd --zone=op_inventory-access --remove-source=172.19.10.15/24 --permanent
-    firewall-cmd --zone=op_inventory-access --remove-port=8080/tcp --permanent
-    firewall-cmd --permanent --delete-zone=op_inventory-access
-    firewall-cmd --reload --quiet
-fi
-
-
+if systemctl is-active --quiet firewalld; then
+       # Complete uninstall
+       firewall-cmd --zone=op_inventory-access --remove-source=172.19.10.14/24 --permanent
+       firewall-cmd --zone=op_inventory-access --remove-source=172.19.10.15/24 --permanent
+       firewall-cmd --zone=op_inventory-access --remove-port=8080/tcp --permanent
+       firewall-cmd --permanent --delete-zone=op_inventory-access
+       firewall-cmd --reload --quiet
+   fi
 # Post-Un section
 %postun
 rm -rf /var/log/op_inventoryd
@@ -100,11 +97,11 @@ rm -rf /run/op_inventoryd
 %attr(644,root,root) %{_unitdir}/op_inventoryd.service
 
 # File owned by root, but group can read it
-%attr(640,root,%{groupname}) %{_sysconfdir}/op_inventoryd.conf
+%attr(640,root,user) %{_sysconfdir}/op_inventoryd.conf
 
 # Files and directories owned by op_inventoryd:op_inventoryd user
-%attr(755,%{username},%{groupname}) %{_var}/log/op_inventoryd
-%attr(755,%{username},%{groupname}) %{_rundir}/op_inventoryd
+%attr(755,user,user) %{_var}/log/op_inventoryd
+%attr(755,user,user) %{_rundir}/op_inventoryd
 
 
 # This is section, where you should describe all important changes

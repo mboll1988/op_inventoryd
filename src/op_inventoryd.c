@@ -19,7 +19,7 @@
 #include <sys/wait.h>
 
 #define _GNU_SOURCE
-#define _POSIX_SOURCE
+//#define _POSIX_SOURCE
 #define BD_NO_CLOSE_FILES 02
 #define BD_NO_CHDIR 01
 #define BD_NO_UMASK0 010
@@ -53,7 +53,7 @@ struct hostent {
   char    **h_addr_list;
 }
 #endif
-static int app_started;
+
 static int running = 0;
 static int delay = 1;
 static int counter = 0;
@@ -190,17 +190,17 @@ int main(int argc, char *argv[])
 	};
 	int value, option_index = 0, ret;
 	char *log_file_name = NULL;
-	int start_daemonized = 0;
+	//int start_daemonized = 0;
 	int parentfd;
 	int childfd;
-	int clientlen;
+	socklen_t clientlen;
 	struct sockaddr_in serveraddr;
 	struct sockaddr_in clientaddr;
 	struct hostent *hostp;
 	char buf[BUFSIZE];
 	char *hostaddrp;
 	int optval;
-	int n, ret_d;
+	int n;//, ret_d;
 	pid_t pid_daemon;
 	int started = 0;
 	app_name = argv[0];
